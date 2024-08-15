@@ -1,38 +1,92 @@
-async generateHooks() {
-  if (!this.offer || !this.targetAudience || this.contentPillars.filter(p => p.trim()).length === 0) {
-    this.error = 'Please fill in all fields.';
-    return;
-  }
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hook Generator</title>
+    <script src="https://cdn.jsdelivr.net/npm/vue@2.6.14/dist/vue.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+</head>
+<body>
+    <div id="app">
+        <h1>Hook Generator</h1>
+        <div>
+            <label for="offer">Your Offer:</label>
+            <input v-model="offer" id="offer" type="text">
+        </div>
+        <div>
+            <label for="targetAudience">Target Audience:</label>
+            <input v-model="targetAudience" id="targetAudience" type="text">
+        </div>
+        <div v-for="(pillar, index) in contentPillars" :key="index">
+            <label :for="'pillar' + index">Content Pillar {{ index + 1 }}:</label>
+            <input v-model="contentPillars[index]" :id="'pillar' + index" type="text">
+        </div>
+        <button @click="generateHooks" :disabled="loading">
+            {{ loading ? 'Generating...' : 'Generate Hooks' }}
+        </button>
+        <div v-if="error" style="color: red;">{{ error }}</div>
+        <div v-for="(result, index) in results" :key="index">
+            <h3>{{ result.pillar }}</h3>
+            <ul>
+                <li v-for="(hook, hookType) in result.hooks" :key="hookType">
+                    <strong>{{ hookType }}:</strong> {{ hook[0] }}
+                </li>
+            </ul>
+        </div>
+    </div>
 
-  this.loading = true;
-  this.results = [];
-  this.error = null;
+    <script>
+        new Vue({
+            el: '#app',
+            data: {
+                offer: '',
+                targetAudience: '',
+                contentPillars: ['', '', ''],
+                results: [],
+                loading: false,
+                error: null
+            },
+            methods: {
+                async generateHooks() {
+                    if (!this.offer || !this.targetAudience || this.contentPillars.filter(p => p.trim()).length === 0) {
+                        this.error = 'Please fill in all fields.';
+                        return;
+                    }
 
-  const validPillars = this.contentPillars.filter(pillar => pillar.trim() !== '');
+                    this.loading = true;
+                    this.results = [];
+                    this.error = null;
 
-  try {
-    for (const pillar of validPillars) {
-      const hooks = await this.generateHooksForPillar(this.offer, this.targetAudience, pillar);
-      this.results.push({ pillar, hooks });
-    }
-  } catch (error) {
-    this.error = `An error occurred while generating hooks: ${error.message}`;
-    console.error('Error generating hooks:', error);
-  } finally {
-    this.loading = false;
-  }
-},
+                    const validPillars = this.contentPillars.filter(pillar => pillar.trim() !== '');
 
-async generateHooksForPillar(offer, targetAudience, contentPillar) {
-  try {
-    const response = await axios.post('/.netlify/functions/generate-hooks', {
-      offer,
-      targetAudience,
-      contentPillar
-    });
-    return response.data;
-  } catch (error) {
-    console.error('Error calling generate-hooks function:', error.response ? error.response.data : error.message);
-    throw new Error(error.response ? error.response.data.error : error.message);
-  }
-},
+                    try {
+                        for (const pillar of validPillars) {
+                            const hooks = await this.generateHooksForPillar(this.offer, this.targetAudience, pillar);
+                            this.results.push({ pillar, hooks });
+                        }
+                    } catch (error) {
+                        this.error = `An error occurred while generating hooks: ${error.message}`;
+                        console.error('Error generating hooks:', error);
+                    } finally {
+                        this.loading = false;
+                    }
+                },
+                async generateHooksForPillar(offer, targetAudience, contentPillar) {
+                    try {
+                        const response = await axios.post('/.netlify/functions/generate-hooks', {
+                            offer,
+                            targetAudience,
+                            contentPillar
+                        });
+                        return response.data;
+                    } catch (error) {
+                        console.error('Error calling generate-hooks function:', error.response ? error.response.data : error.message);
+                        throw new Error(error.response ? error.response.data.error : error.message);
+                    }
+                }
+            }
+        });
+    </script>
+</body>
+</html>
