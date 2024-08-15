@@ -1,7 +1,7 @@
 {
-  "name": "enhanced-hook-generator",
+  "name": "hook-generator",
   "version": "1.0.0",
-  "description": "AI-powered hook generator using OpenAI API and Netlify Functions",
+  "description": "AI-powered hook generator using OpenAI API",
   "main": "index.html",
   "dependencies": {
     "axios": "^0.21.1"
