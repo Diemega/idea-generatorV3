@@ -1,140 +1,38 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Enhanced Hook Generator v3</title>
-    <meta name="description" content="Generate attention-grabbing hooks for your content using AI-powered lenses.">
-    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700&display=swap" rel="stylesheet">
-    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
-    <style>
-        body {
-            font-family: 'Montserrat', sans-serif;
-        }
-    </style>
-</head>
-<body class="bg-gray-100 min-h-screen">
-    <div id="app" class="container mx-auto px-4 py-8">
-        <h1 class="text-4xl font-bold mb-8 text-center">Enhanced Hook Generator v3</h1>
-        
-        <div class="mb-6">
-            <label for="offer" class="block mb-2 font-semibold">Your Offer:</label>
-            <input v-model="offer" type="text" id="offer" class="w-full p-2 border rounded" placeholder="E.g., Social media management service">
-        </div>
+async generateHooks() {
+  if (!this.offer || !this.targetAudience || this.contentPillars.filter(p => p.trim()).length === 0) {
+    this.error = 'Please fill in all fields.';
+    return;
+  }
 
-        <div class="mb-6">
-            <label for="target-audience" class="block mb-2 font-semibold">Target Audience:</label>
-            <input v-model="targetAudience" type="text" id="target-audience" class="w-full p-2 border rounded" placeholder="E.g., Small business owners">
-        </div>
+  this.loading = true;
+  this.results = [];
+  this.error = null;
 
-        <div class="mb-6">
-            <label class="block mb-2 font-semibold">Content Pillars:</label>
-            <div v-for="(pillar, index) in contentPillars" :key="index" class="flex mb-2">
-                <input v-model="contentPillars[index]" type="text" class="flex-grow p-2 border rounded" :placeholder="`Pillar ${index + 1}`">
-                <button @click="removePillar(index)" class="ml-2 px-4 py-2 bg-red-500 text-white rounded">Remove</button>
-            </div>
-            <button @click="addPillar" class="mt-2 px-4 py-2 bg-blue-500 text-white rounded">Add Pillar</button>
-        </div>
+  const validPillars = this.contentPillars.filter(pillar => pillar.trim() !== '');
 
-        <button @click="generateHooks" class="w-full py-2 bg-green-500 text-white rounded font-semibold" :disabled="loading">
-            {{ loading ? 'Generating Hooks...' : 'Generate Hooks' }}
-        </button>
+  try {
+    for (const pillar of validPillars) {
+      const hooks = await this.generateHooksForPillar(this.offer, this.targetAudience, pillar);
+      this.results.push({ pillar, hooks });
+    }
+  } catch (error) {
+    this.error = `An error occurred while generating hooks: ${error.message}`;
+    console.error('Error generating hooks:', error);
+  } finally {
+    this.loading = false;
+  }
+},
 
-        <div v-if="error" class="mt-4 p-4 bg-red-100 text-red-700 rounded">
-            {{ error }}
-        </div>
-
-        <div v-if="results.length > 0" class="mt-8">
-            <h2 class="text-2xl font-bold mb-4">Generated Hooks:</h2>
-            <div v-for="(result, resultIndex) in results" :key="resultIndex" class="mb-6">
-                <h3 class="text-xl font-semibold mb-2">{{ result.pillar }}</h3>
-                <div v-for="(hooks, lens) in result.hooks" :key="lens" class="mb-4">
-                    <h4 class="text-lg font-semibold">{{ lens }}</h4>
-                    <ul class="list-disc pl-5">
-                        <li v-for="(hook, hookIndex) in hooks" :key="hookIndex" class="mb-2">
-                            {{ hook }}
-                            <div class="mt-1">
-                                <button @click="rateHook(resultIndex, lens, hookIndex, 'up')" class="text-green-500 mr-2">👍</button>
-                                <button @click="rateHook(resultIndex, lens, hookIndex, 'down')" class="text-red-500">👎</button>
-                            </div>
-                        </li>
-                    </ul>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <script src="https://unpkg.com/vue@2.6.14/dist/vue.js"></script>
-    <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
-    <script>
-        function initVueApp() {
-            new Vue({
-                el: '#app',
-                data: {
-                    offer: '',
-                    targetAudience: '',
-                    contentPillars: ['', '', ''],
-                    results: [],
-                    loading: false,
-                    error: null
-                },
-                methods: {
-                    addPillar() {
-                        if (this.contentPillars.length < 5) {
-                            this.contentPillars.push('');
-                        }
-                    },
-                    removePillar(index) {
-                        this.contentPillars.splice(index, 1);
-                    },
-                    async generateHooks() {
-                        if (!this.offer || !this.targetAudience || this.contentPillars.filter(p => p.trim()).length === 0) {
-                            this.error = 'Please fill in all fields.';
-                            return;
-                        }
-
-                        this.loading = true;
-                        this.results = [];
-                        this.error = null;
-
-                        const validPillars = this.contentPillars.filter(pillar => pillar.trim() !== '');
-
-                        try {
-                            for (const pillar of validPillars) {
-                                const hooks = await this.generateHooksForPillar(this.offer, this.targetAudience, pillar);
-                                this.results.push({ pillar, hooks });
-                            }
-                        } catch (error) {
-                            this.error = 'An error occurred while generating hooks. Please try again.';
-                            console.error('Error generating hooks:', error);
-                        } finally {
-                            this.loading = false;
-                        }
-                    },
-                    async generateHooksForPillar(offer, targetAudience, contentPillar) {
-                        try {
-                            const response = await axios.post('/.netlify/functions/generate-hooks', {
-                                offer,
-                                targetAudience,
-                                contentPillar
-                            });
-                            return response.data;
-                        } catch (error) {
-                            console.error('Error calling generate-hooks function:', error);
-                            throw error;
-                        }
-                    },
-                    rateHook(resultIndex, lens, hookIndex, rating) {
-                        console.log(`Hook rated: ${rating} (Result: ${resultIndex}, Lens: ${lens}, Hook: ${hookIndex})`);
-                        alert(`Thank you for rating this hook ${rating === 'up' ? 'positively' : 'negatively'}!`);
-                    }
-                }
-            });
-        }
-
-        document.addEventListener('DOMContentLoaded', (event) => {
-            initVueApp();
-        });
-    </script>
-</body>
-</html>
+async generateHooksForPillar(offer, targetAudience, contentPillar) {
+  try {
+    const response = await axios.post('/.netlify/functions/generate-hooks', {
+      offer,
+      targetAudience,
+      contentPillar
+    });
+    return response.data;
+  } catch (error) {
+    console.error('Error calling generate-hooks function:', error.response ? error.response.data : error.message);
+    throw new Error(error.response ? error.response.data.error : error.message);
+  }
+},
