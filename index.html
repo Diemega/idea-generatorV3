@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Enhanced Idea Generator v3</title>
+    <meta name="description" content="Generate creative ideas for your projects with our AI-powered Idea Generator. Customizable categories and themes available.">
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700&display=swap" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Montserrat', sans-serif;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 min-h-screen">
+    <div id="app" class="container mx-auto px-4 py-8">
+        <h1 class="text-4xl font-bold mb-8 text-center">Enhanced Idea Generator v3</h1>
+        
+        <div class="mb-6">
+            <label for="target-audience" class="block mb-2 font-semibold">Target Audience:</label>
+            <input v-model="targetAudience" type="text" id="target-audience" class="w-full p-2 border rounded" placeholder="E.g., Small business owners">
+        </div>
+
+        <div class="mb-6">
+            <label class="block mb-2 font-semibold">Content Pillars:</label>
+            <div v-for="(pillar, index) in contentPillars" :key="index" class="flex mb-2">
+                <input v-model="contentPillars[index]" type="text" class="flex-grow p-2 border rounded" :placeholder="`Pillar ${index + 1}`">
+                <button @click="removePillar(index)" class="ml-2 px-4 py-2 bg-red-500 text-white rounded">Remove</button>
+            </div>
+            <button @click="addPillar" class="mt-2 px-4 py-2 bg-blue-500 text-white rounded">Add Pillar</button>
+        </div>
+
+        <div class="mb-6">
+            <label for="category" class="block mb-2 font-semibold">Category:</label>
+            <select v-model="selectedCategory" id="category" class="w-full p-2 border rounded">
+                <option value="">Select a category</option>
+                <option v-for="category in categories" :key="category" :value="category">{{ category }}</option>
+            </select>
+        </div>
+
+        <button @click="generateIdeas" class="w-full py-2 bg-green-500 text-white rounded font-semibold" :disabled="loading">
+            {{ loading ? 'Generating Ideas...' : 'Generate Ideas' }}
+        </button>
+
+        <div v-if="error" class="mt-4 p-4 bg-red-100 text-red-700 rounded">
+            {{ error }}
+        </div>
+
+        <div v-if="results.length > 0" class="mt-8">
+            <h2 class="text-2xl font-bold mb-4">Generated Ideas:</h2>
+            <div v-for="(result, resultIndex) in results" :key="resultIndex" class="mb-6">
+                <h3 class="text-xl font-semibold mb-2">{{ result.pillar }}</h3>
+                <ul class="list-disc pl-5">
+                    <li v-for="(idea, ideaIndex) in result.ideas" :key="ideaIndex" class="mb-2">
+                        <strong>{{ idea.type }}:</strong> {{ idea.hook }}
+                        <div class="mt-1">
+                            <button @click="rateIdea(resultIndex, ideaIndex, 'up')" class="text-green-500 mr-2">👍</button>
+                            <button @click="rateIdea(resultIndex, ideaIndex, 'down')" class="text-red-500">👎</button>
+                        </div>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/vue@2.6.14/dist/vue.js"></script>
+    <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+    <script>
+        function initVueApp() {
+            new Vue({
+                el: '#app',
+                data: {
+                    targetAudience: '',
+                    contentPillars: ['', '', ''],
+                    categories: ['Business Ideas', 'Creative Writing', 'Marketing Strategies', 'Product Development', 'Personal Growth'],
+                    selectedCategory: '',
+                    results: [],
+                    loading: false,
+                    error: null
+                },
+                methods: {
+                    addPillar() {
+                        if (this.contentPillars.length < 5) {
+                            this.contentPillars.push('');
+                        }
+                    },
+                    removePillar(index) {
+                        this.contentPillars.splice(index, 1);
+                    },
+                    async generateIdeas() {
+                        if (!this.targetAudience || this.contentPillars.filter(p => p.trim()).length === 0 || !this.selectedCategory) {
+                            this.error = 'Please fill in all fields.';
+                            return;
+                        }
+
+                        this.loading = true;
+                        this.results = [];
+                        this.error = null;
+
+                        const contentTypes = ['How-to', 'Listicle', 'Case Study', 'Interview', 'Review'];
+                        const validPillars = this.contentPillars.filter(pillar => pillar.trim() !== '');
+
+                        try {
+                            for (const pillar of validPillars) {
+                                const ideas = await Promise.all(contentTypes.map(type => 
+                                    this.generateIdea(this.targetAudience, pillar, type, this.selectedCategory)
+                                ));
+                                this.results.push({ pillar, ideas });
+                            }
+                        } catch (error) {
+                            this.error = 'An error occurred while generating ideas. Please try again.';
+                            console.error('Error generating ideas:', error);
+                        } finally {
+                            this.loading = false;
+                        }
+                    },
+                    async generateIdea(targetAudience, contentPillar, contentType, category) {
+                        try {
+                            const response = await axios.post('/.netlify/functions/generate-idea', {
+                                targetAudience,
+                                contentPillar,
+                                contentType,
+                                category
+                            });
+                            return response.data;
+                        } catch (error) {
+                            console.error('Error calling generate-idea function:', error);
+                            throw error;
+                        }
+                    },
+                    rateIdea(resultIndex, ideaIndex, rating) {
+                        console.log(`Idea rated: ${rating} (Result: ${resultIndex}, Idea: ${ideaIndex})`);
+                        alert(`Thank you for rating this idea ${rating === 'up' ? 'positively' : 'negatively'}!`);
+                    }
+                }
+            });
+        }
+
+        // Wait for the DOM to be fully loaded before initializing Vue
+        document.addEventListener('DOMContentLoaded', (event) => {
+            initVueApp();
+        });
+    </script>
+</body>
+</html>
