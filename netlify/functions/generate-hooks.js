@@ -31,23 +31,31 @@ exports.handler = async function(event, context) {
 
   console.log('Processing request for:', { offer, targetAudience, contentPillar });
 
+  if (!process.env.OPENAI_API_KEY) {
+    console.error('OpenAI API key is not set');
+    return { statusCode: 500, body: JSON.stringify({ error: 'OpenAI API key is not configured' }) };
+  }
+
   try {
     const hooks = {};
     for (const lens of lenses) {
       console.log(`Generating hook for lens: ${lens}`);
-      const prompt = `Generate a ${lens} hook for the following:
-        Offer: ${offer}
-        Target Audience: ${targetAudience}
-        Content Pillar: ${contentPillar}
-        
-        The hook should be attention-grabbing and effective. Please provide only the hook text.`;
+      const messages = [
+        { role: "system", content: "You are a creative marketing assistant skilled in generating hooks for content." },
+        { role: "user", content: `Generate a ${lens} hook for the following:
+          Offer: ${offer}
+          Target Audience: ${targetAudience}
+          Content Pillar: ${contentPillar}
+          
+          The hook should be attention-grabbing and effective. Please provide only the hook text.` }
+      ];
 
       console.log('Sending request to OpenAI API');
-      const response = await axios.post('https://api.openai.com/v1/engines/text-davinci-002/completions', {
-        prompt: prompt,
+      const response = await axios.post('https://api.openai.com/v1/chat/completions', {
+        model: "gpt-4o-mini",
+        messages: messages,
         max_tokens: 50,
         n: 1,
-        stop: null,
         temperature: 0.7,
       }, {
         headers: {
@@ -57,7 +65,7 @@ exports.handler = async function(event, context) {
       });
 
       console.log(`Received response from OpenAI API for lens: ${lens}`);
-      hooks[lens] = [response.data.choices[0].text.trim()];
+      hooks[lens] = [response.data.choices[0].message.content.trim()];
     }
 
     console.log('Successfully generated all hooks');
@@ -66,10 +74,10 @@ exports.handler = async function(event, context) {
       body: JSON.stringify(hooks)
     };
   } catch (error) {
-    console.error('Error calling OpenAI API:', error.response ? error.response.data : error.message);
+    console.error('Error calling OpenAI API:', error.response ? JSON.stringify(error.response.data) : error.message);
     return {
       statusCode: 500,
-      body: JSON.stringify({ error: 'Failed to generate hooks', details: error.message })
+      body: JSON.stringify({ error: 'Failed to generate hooks', details: error.message, response: error.response ? error.response.data : null })
     };
   }
 };
