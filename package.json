@@ -1,11 +1,8 @@
 {
-  "name": "enhanced-idea-generator",
+  "name": "enhanced-hook-generator",
   "version": "1.0.0",
-  "description": "AI-powered idea generator using OpenAI API and Netlify Functions",
+  "description": "AI-powered hook generator using OpenAI API and Netlify Functions",
   "main": "index.html",
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
-  },
   "dependencies": {
     "axios": "^0.21.1"
   }
